@@ -12,6 +12,7 @@
 #    https://wiki.ubuntuusers.de/NFS/
 # ----------------------------------------------------------------------
 
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 unset PATH	# suggestion from H. Milz: avoid accidental use of $PATH
 
 # ------------- system commands used by this script --------------------
@@ -97,7 +98,7 @@ SNAPSHOT_RW=/root/snapshots;
 HOST_BACKUP=$SNAPSHOT_RW/$HOST
 
 # List of patterns which to exclude. See rsync manual.
-EXCLUDES=/root/backupexcludes.txt
+EXCLUDES="${SCRIPT_DIR}/backupexcludes.txt"
 
 # The backup lock file
 BACKUP_LOCK=$HOST_BACKUP/.backup.lock

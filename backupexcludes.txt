@@ -1,0 +1,19 @@
+# System directories
+/dev/*
+/proc/*
+/sys/*
+/tmp/*
+/run/*
+/mnt/*
+/media/*
+/lost+found
+
+# Cache directories
+.cache/
+[cC]ache/
+**/.ccache/[[:alnum:]]/
+**/.ccache/tmp/
+
+# Exclude every snapshots directory, safty first
+snapshots/
+.snapshots/

@@ -21,6 +21,20 @@ function rotateSnapshots {
 		return 1
 	fi
 
+	# step 0: Check if most recent version can be created if TURNUS_FAST is given.
+	# If not, rotating makes no sense.
+	if [ -n "$TURNUS_FAST" ]; then
+		if [ -z "$COUNT_FAST" ]; then
+			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.1"
+		else
+			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.$COUNT_FAST"
+		fi
+		if [ ! -d "$TURNUS_FAST_SRC" ]; then
+			$ECHO "Latest fast turnus backup does not exit. Doing nothing." &>> $LOG
+			return 0
+		fi
+	fi
+
 	# step 1: delete the oldest snapshot, if it exists:
 	SRC="$HOST_BACKUP/$TURNUS.$COUNT"
 	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG

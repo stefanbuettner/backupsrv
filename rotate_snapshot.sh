@@ -6,6 +6,7 @@
 # midnight (or whenever you want) snapshot; say, 13:00 for 4-hour snapshots.
 # ----------------------------------------------------------------------
 
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 unset PATH
 
 # ------------- system commands used by this script --------------------

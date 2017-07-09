@@ -110,6 +110,9 @@ EXCLUDES=/root/backupexcludes.txt
 # The backup lock file
 BACKUP_LOCK=$HOST_BACKUP/.backup.lock
 
+# The rw mount lock
+MOUNT_LOCK=$SNAPSHOT_RW/.backup.lock
+
 # Logfile
 GLOBAL_LOG=/var/log/backupsrv.log
 LOG=/tmp/backupsrv-$HOST.log
@@ -119,14 +122,39 @@ LOG=/tmp/backupsrv-$HOST.log
 function backupExit {
 	FAIL=$1
 
-	# now remount the RW snapshot mountpoint as readonly
-	$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> $LOG
-	if [ ! $DRY_RUN ]; then
-		$MOUNT -o remount,ro $SNAPSHOT_RW &>> $LOG
-		if (( $? )); then
-			$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> $LOG ;
-			FAIL=1
+	# Now remount the RW snapshot mountpoint as readonly
+	# if we are the last to access it.
+	# Also if there is no mount lock file anymore, remount as
+	# read only
+	REMOUNT_RO=true
+	if [ -f "$MOUNT_LOCK" ]; then
+		NUM=$(CAT "$MOUNT_LOCK")
+		NUM=$(( NUM - 1 ))
+		if [ $NUM -gt 0 ]; then
+			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> $LOG
+			REMOUNT_RO=false
+			if [ ! $DRY_RUN ]; then
+				$ECHO $NUM > "$MOUNT_LOCK"
+			fi
+		else
+			$ECHO "Unlocking $SNAPSHOT_RW." &>> $LOG
+			if [ ! $DRY_RUN ]; then
+				$RM "$MOUNT_LOCK" &>> $LOG
+			fi
 		fi
+	fi
+
+	if [ $REMOUNT_RO == true ]; then
+		$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> $LOG
+		if [ ! $DRY_RUN ]; then
+			$MOUNT -o remount,ro $SNAPSHOT_RW &>> $LOG
+			if (( $? )); then
+				$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> $LOG ;
+				FAIL=1
+			fi
+		fi
+	else
+		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> $LOG
 	fi
 
 	STATUS="done"
@@ -181,14 +209,29 @@ if [ -f $BACKUP_LOCK ]; then
 fi
 
 # attempt to remount the RW mount point as RW; else abort
-if [ ! $DRY_RUN ]; then
+# Check if SNAPSHOT_RW is already mounted rw by another backup.
+# If so, increase the usage counter, otherwise create one.
+if [ -f "$MOUNT_LOCK" ]; then
+	NUM=$($CAT "$MOUNT_LOCK")
+	$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> $LOG
+	if [ ! $DRY_RUN ]; then
+		$ECHO "Increasing by 1" &>> $LOG
+		$ECHO "$(( $NUM + 1 ))" > "$MOUNT_LOCK"
+	fi
+else
 	$ECHO "Remounting $SNAPSHOT_RW writable." &>> $LOG ;
-	$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> $LOG ;
-	if (( $? )); then
-	{
-		$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> $LOG ;
-		backupExit 1;
-	}
+	if [ ! $DRY_RUN ]; then
+		$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> $LOG ;
+		if (( $? )); then
+		{
+			$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> $LOG ;
+			backupExit 1;
+		}
+		fi
+	fi
+	$ECHO "Locking $SNAPSHOT_RW as writable." &>> $LOG
+	if [ ! $DRY_RUN ]; then
+		$ECHO "1" > "$MOUNT_LOCK"
 	fi
 fi
 
@@ -244,7 +287,7 @@ fi
 
 # note: do *not* update the mtime of daily.0; it will reflect
 # when hourly.3 was made, which should be correct.
-$ECHO "Unlocking $HOST_BACKUP" &>> $LOG
+$ECHO "Unlocking $HOST_BACKUP." &>> $LOG
 if [ ! $DRY_RUN ]; then
 	$RM $BACKUP_LOCK &>> $LOG ;
 fi

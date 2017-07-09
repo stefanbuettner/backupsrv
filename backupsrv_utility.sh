@@ -135,6 +135,12 @@ function prepareBackup {
 	# Make sure the backup device is writable.
 	ensureWritable ;
 
+	# Ensure that the HOST_BACKUP folder exists
+	$ECHO "Ensuring that $HOST_BACKUP exists." &>> $LOG
+	if [ ! $DRY_RUN ]; then
+		$MKDIR -p "$HOST_BACKUP" &>> $LOG
+	fi
+
 	# Just hope that in the meantime no other process locked it.
 	lockBackupFolder ;
 

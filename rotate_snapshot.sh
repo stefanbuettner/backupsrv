@@ -118,62 +118,6 @@ MOUNT_LOCK=$SNAPSHOT_RW/.backup.lock
 GLOBAL_LOG=/var/log/backupsrv.log
 LOG=/tmp/backupsrv-$HOST.log
 
-# ------------- a custom exit function ---------------------------------
-
-function backupExit {
-	FAIL=$1
-
-	# Now remount the RW snapshot mountpoint as readonly
-	# if we are the last to access it.
-	# Also if there is no mount lock file anymore, remount as
-	# read only
-	REMOUNT_RO=true
-	if [ -f "$MOUNT_LOCK" ]; then
-		NUM=$(CAT "$MOUNT_LOCK")
-		NUM=$(( NUM - 1 ))
-		if [ $NUM -gt 0 ]; then
-			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> $LOG
-			REMOUNT_RO=false
-			if [ ! $DRY_RUN ]; then
-				$ECHO $NUM > "$MOUNT_LOCK"
-			fi
-		else
-			$ECHO "Unlocking $SNAPSHOT_RW." &>> $LOG
-			if [ ! $DRY_RUN ]; then
-				$RM "$MOUNT_LOCK" &>> $LOG
-			fi
-		fi
-	fi
-
-	if [ $REMOUNT_RO == true ]; then
-		$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> $LOG
-		if [ ! $DRY_RUN ]; then
-			$MOUNT -o remount,ro $SNAPSHOT_RW &>> $LOG
-			if (( $? )); then
-				$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> $LOG ;
-				FAIL=1
-			fi
-		fi
-	else
-		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> $LOG
-	fi
-
-	STATUS="done"
-	if (( $FAIL )); then
-		STATUS="FAILED"
-	fi
-	$ECHO "$($DATE) Backup $STATUS for $HOST." >> $LOG ;
-	# If an error occurred, print the log to stderr so that the cron job sends an email.
-	if (( $FAIL )); then
-		$CAT $LOG 1>&2 ;
-	fi
-	$CAT $LOG &>> $GLOBAL_LOG
-	if [ -f "$LOG" ]; then
-		$RM $LOG ;
-	fi
-	exit $FAIL
-}
-
 # ------------- the script itself --------------------------------------
 $ECHO "===============================================================================" >> $LOG ;
 $ECHO "$($DATE): Rotating for $HOST" >> $LOG ;
@@ -186,61 +130,8 @@ $ECHO "Count       : $COUNT" >> $LOG ;
 $ECHO "Fast Turnus : $TURNUS_FAST" >> $LOG ;
 $ECHO "Fast Count  : $COUNT_FAST" >> $LOG ;
 
-# make sure we're running as root
-if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> $LOG; backupExit 1; } fi
-
-# Ensure that the snapshots device is mounted
-$FINDMNT $SNAPSHOT_RW &> /dev/null ;
-if [ "$?" -ne 0 ]; then
-	# If not, try to mount it.
-	# If this doesn't succeed, exit.
-	$ECHO "Mounting $SNAPSHOT_RW" &>> $LOG ;
-	if [ ! $DRY_RUN ]; then
-		$MOUNT --target $SNAPSHOT_RW &>> $LOG ;
-		if (( $? )); then
-			backupExit 1;
-		fi
-	fi
-fi
-
-# Check if another backup process is still active
-if [ -f $BACKUP_LOCK ]; then
-	$ECHO "Another backup process still seems to be active." >> $LOG ; 
-	backupExit 1;
-fi
-
-# attempt to remount the RW mount point as RW; else abort
-# Check if SNAPSHOT_RW is already mounted rw by another backup.
-# If so, increase the usage counter, otherwise create one.
-if [ -f "$MOUNT_LOCK" ]; then
-	NUM=$($CAT "$MOUNT_LOCK")
-	$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> $LOG
-	if [ ! $DRY_RUN ]; then
-		$ECHO "Increasing by 1" &>> $LOG
-		$ECHO "$(( $NUM + 1 ))" > "$MOUNT_LOCK"
-	fi
-else
-	$ECHO "Remounting $SNAPSHOT_RW writable." &>> $LOG ;
-	if [ ! $DRY_RUN ]; then
-		$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> $LOG ;
-		if (( $? )); then
-		{
-			$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> $LOG ;
-			backupExit 1;
-		}
-		fi
-	fi
-	$ECHO "Locking $SNAPSHOT_RW as writable." &>> $LOG
-	if [ ! $DRY_RUN ]; then
-		$ECHO "1" > "$MOUNT_LOCK"
-	fi
-fi
-
-# Just hope, that in the meantime no other process locked.
-$ECHO "Locking $HOST_BACKUP" &>> $LOG ;
-if [ ! $DRY_RUN ]; then
-	$TOUCH $BACKUP_LOCK &>> $LOG ;
-fi
+source "$SCRIPT_DIR/backupsrv_utility.sh"
+prepareBackup ;
 
 # step 1: delete the oldest snapshot, if it exists:
 SRC="$HOST_BACKUP/$TURNUS.$COUNT"
@@ -250,7 +141,7 @@ if [ -d "$SRC" ] ; then
 		$RM -rf "$HOST_BACKUP/$TURNUS.$COUNT" &>> $LOG
 	fi
 else
-	$ECHO "Failed because $SRC was not found." &>> $LOG
+	$ECHO "Skipping because $SRC was not found." &>> $LOG
 fi
 
 # step 2: shift the middle snapshots(s) back by one, if they exist
@@ -283,14 +174,7 @@ if [ -d "$SRC" ]; then
 		$CP -al "$SRC" "$DST" &>> $LOG
 	fi
 else
-	$ECHO "Failed because $SRC does not exit." &>> $LOG
-fi
-
-# note: do *not* update the mtime of daily.0; it will reflect
-# when hourly.3 was made, which should be correct.
-$ECHO "Unlocking $HOST_BACKUP." &>> $LOG
-if [ ! $DRY_RUN ]; then
-	$RM $BACKUP_LOCK &>> $LOG ;
+	$ECHO "Skipping because $SRC does not exit." &>> $LOG
 fi
 
 backupExit 0

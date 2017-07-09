@@ -149,7 +149,7 @@ $RSYNC								\
 	-va --delete --delete-excluded				\
 	--exclude-from="$EXCLUDES"				\
 	$RSYNC_DRYRUN_ARG					\
-	$HOST::system/ "$DST" > /dev/null 2>> $LOG ;
+	$HOST::backupsrc/ "$DST" > /dev/null 2>> $LOG ;
 
 if (( $? )); then
 	$ECHO "rsync exited with: $?" >> $LOG ;

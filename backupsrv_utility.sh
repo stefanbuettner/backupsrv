@@ -26,7 +26,7 @@ function rotateSnapshots {
 	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG
 	if [ -d "$SRC" ] ; then
 		if [ ! $DRY_RUN ]; then
-			$RM -rf "$HOST_BACKUP/$TURNUS.$COUNT" &>> $LOG
+			$RM -rf "$SRC" &>> $LOG
 		fi
 	else
 		$ECHO "Skipping because $SRC was not found." &>> $LOG
@@ -190,7 +190,7 @@ function backupExit {
 
 	$CAT $LOG &>> $GLOBAL_LOG
 	if [ -f "$LOG" ]; then
-		$RM $LOG ;
+		$RM "$LOG" ;
 	fi
 
 	exit $FAIL
@@ -267,7 +267,7 @@ function unlockBackupFolder {
 	if [ -f "$BACKUP_LOCK" ]; then
 		$ECHO "Unlocking $HOST_BACKUP." &>> $LOG
 		if [ ! $DRY_RUN ]; then
-			$RM $BACKUP_LOCK &>> $LOG ;
+			$RM "$BACKUP_LOCK" &>> $LOG ;
 		fi
 	fi
 }

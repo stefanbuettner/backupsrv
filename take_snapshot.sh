@@ -38,7 +38,7 @@ function printHelp {
 	$ECHO ""
 	$ECHO "USAGE:"
 	$ECHO ""
-	$ECHO "    $0 --host <host> --turnus <turnus> [--count <integer>] [-h | --help]"
+	$ECHO "    $0 --host <host> --turnus <turnus> [--count <integer>] [--dry-run] [-h | --help]"
 	$ECHO ""
 	$ECHO "    Takes a snapshots of the given host to /snapshots/<hostname>/<turnus>.0"
 	$ECHO ""
@@ -67,6 +67,9 @@ do
 			shift
 			COUNT=$1
 		;;
+		--dry-run)
+			DRY_RUN=true
+		;;
 		*)
 			$ECHO "Unknown parameter $arg. Try --help for more information."
 		exit 1
@@ -75,12 +78,14 @@ do
 done
 
 if [ "$HOST" == "" ]; then
-	$ECHO "No host given. See --help for more information."
+	$ECHO "No host given."
+	printHelp
 	exit 1
 fi
 
 if [ "$TURNUS" == "" ]; then
-	$ECHO "No turnus given. See --help for more information."
+	$ECHO "No turnus given."
+	printHelp
 	exit 1
 fi
 
@@ -120,41 +125,57 @@ prepareBackup ;
 # rotating snapshots of / (fixme: this should be more general)
 
 # step 1: delete the oldest snapshot, if it exists:
-if [ -d $HOST_BACKUP/$TURNUS.3 ] ; then			\
-	$ECHO "Removing $TURNUS.3" >> $LOG		\
-	$RM -rf $HOST_BACKUP/$TURNUS.3 &>> $LOG;			\
-fi ;
+if [ -d $HOST_BACKUP/$TURNUS.3 ] ; then
+	$ECHO "Removing $TURNUS.3" >> $LOG
+	if [ ! $DRY_RUN ]; then
+		$RM -rf $HOST_BACKUP/$TURNUS.3 &>> $LOG
+	fi
+fi
 
 # step 2: shift the middle snapshots(s) back by one, if they exist
-if [ -d $HOST_BACKUP/$TURNUS.2 ] ; then			\
-	$ECHO "Shifting $TURNUS.2 → $TURNUS.3" >> $LOG	\
-	$MV $HOST_BACKUP/$TURNUS.2 $HOST_BACKUP/$TURNUS.3 &>> $LOG;	\
-fi;
-if [ -d $HOST_BACKUP/$TURNUS.1 ] ; then			\
-	$ECHO "Shifting $TURNUS.1 → $TURNUS.2" >> $LOG	\
-	$MV $HOST_BACKUP/$TURNUS.1 $HOST_BACKUP/$TURNUS.2 &>> $LOG;	\
-fi;
+if [ -d $HOST_BACKUP/$TURNUS.2 ] ; then
+	$ECHO "Shifting $TURNUS.2 → $TURNUS.3" >> $LOG
+	if [ ! $DRY_RUN ]; then
+		$MV $HOST_BACKUP/$TURNUS.2 $HOST_BACKUP/$TURNUS.3 &>> $LOG
+	fi
+fi
+if [ -d $HOST_BACKUP/$TURNUS.1 ] ; then
+	$ECHO "Shifting $TURNUS.1 → $TURNUS.2" >> $LOG
+	if [ ! $DRY_RUN ]; then
+		$MV $HOST_BACKUP/$TURNUS.1 $HOST_BACKUP/$TURNUS.2 &>> $LOG
+	fi
+fi
 
 # step 3: make a hard-link-only (except for dirs) copy of the latest snapshot,
 # if that exists
-if [ -d $HOST_BACKUP/$TURNUS.0 ] ; then			\
-	$ECHO "Copy (hard linked) $TURNUS.0 → $TURNUS.1" >> $LOG	\
-	$CP -al $HOST_BACKUP/$TURNUS.0 $HOST_BACKUP/$TURNUS.1 &>> $LOG;	\
-fi;
+if [ -d $HOST_BACKUP/$TURNUS.0 ] ; then
+	$ECHO "Copy (hard linked) $TURNUS.0 → $TURNUS.1" >> $LOG
+	if [ ! $DRY_RUN ]; then
+		$CP -al $HOST_BACKUP/$TURNUS.0 $HOST_BACKUP/$TURNUS.1 &>> $LOG
+	fi
+fi
 
 # Ensure that the destination dir really exists.
 # It may not in the first run.
-$MKDIR -p $HOST_BACKUP/$TURNUS.0 &>> $LOG ;
+DST="$HOST_BACKUP/$TURNUS.1"
+$ECHO "Ensuring that $DST exists." &>> $LOG
+if [ ! $DRY_RUN ]; then
+	$MKDIR -p "$DST" &>> $LOG ;
+fi
 
 # step 4: rsync from the system into the latest snapshot (notice that
 # rsync behaves like cp --remove-destination by default, so the destination
 # is unlinked first.  If it were not so, this would copy over the other
 # snapshot(s) too!
-$ECHO "Syncing to $HOST_BACKUP/$TURNUS.0" >> $LOG ;
+if [ $DRY_RUN == true ]; then
+	RSYNC_DRYRUN_ARG="--dry-run"
+fi
+$ECHO "Syncing to $DST" >> $LOG ;
 $RSYNC								\
 	-va --delete --delete-excluded				\
 	--exclude-from="$EXCLUDES"				\
-	$HOST::system/ $HOST_BACKUP/$TURNUS.0 > /dev/null 2>> $LOG ;
+	$RSYNC_DRYRUN_ARG					\
+	$HOST::system/ "$DST" > /dev/null 2>> $LOG ;
 
 if (( $? )); then
 	$ECHO "rsync exited with: $?" >> $LOG ;
@@ -162,7 +183,10 @@ if (( $? )); then
 fi
 
 # step 5: update the mtime of hourly.0 to reflect the snapshot time
-$TOUCH $HOST_BACKUP/$TURNUS.0 &>> $LOG ;
+$ECHO "Updating $DST timestamp." &>> $LOG
+if [ ! $DRY_RUN ]; then
+	$TOUCH "$DST" &>> $LOG ;
+fi
 
 # and thats it.
 

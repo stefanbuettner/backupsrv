@@ -1,3 +1,22 @@
+function prepareBackup {
+	
+	# Make sure we're running as root.
+	ensureRoot ;
+	
+	# Ensure that the snapshots device is mounted.
+	ensureMounted $SNAPSHOT_RW ;
+
+	# Check if another backup process is still active.
+	ensureExclusivity ;
+
+	# Make sure the backup device is writable.
+	ensureWritable ;
+
+	# Just hope that in the meantime no other process locked it.
+	lockBackupFolder ;
+
+}
+
 # Cleanup everything which was done by prepareBackup.
 function backupExit {
 
@@ -141,22 +160,3 @@ function ensureRoot {
 	if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> $LOG; backupExit 1; } fi
 }
 
-
-function prepareBackup {
-	
-	# Make sure we're running as root.
-	ensureRoot ;
-	
-	# Ensure that the snapshots device is mounted.
-	ensureMounted $SNAPSHOT_RW ;
-
-	# Check if another backup process is still active.
-	ensureExclusivity ;
-
-	# Make sure the backup device is writable.
-	ensureWritable ;
-
-	# Just hope that in the meantime no other process locked it.
-	lockBackupFolder ;
-
-}

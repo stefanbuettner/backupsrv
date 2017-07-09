@@ -21,20 +21,6 @@ function rotateSnapshots {
 		return 1
 	fi
 
-	# step 0: Check if most recent version can be created if TURNUS_FAST is given.
-	# If not, rotating makes no sense.
-	if [ -n "$TURNUS_FAST" ]; then
-		if [ -z "$COUNT_FAST" ]; then
-			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.1"
-		else
-			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.$COUNT_FAST"
-		fi
-		if [ ! -d "$TURNUS_FAST_SRC" ]; then
-			$ECHO "Latest fast turnus backup does not exit. Doing nothing." &>> $LOG
-			return 0
-		fi
-	fi
-
 	# step 1: delete the oldest snapshot, if it exists:
 	local SRC="$HOST_BACKUP/$TURNUS.$COUNT"
 	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG
@@ -65,11 +51,25 @@ function rotateSnapshots {
 	# into turnus.1
 	$ECHO "Step 3: Saving most recent $TURNUS." &>> $LOG
 	local DST="$HOST_BACKUP/$TURNUS.1"
-	if [ -n "$TURNUS_FAST_SRC" ]; then
+
+	# Check if most recent version can be created if TURNUS_FAST is given.
+	if [ -n "$TURNUS_FAST" ]; then
+		if [ -z "$COUNT_FAST" ]; then
+			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.1"
+		else
+			local TURNUS_FAST_SRC="$HOST_BACKUP/$TURNUS_FAST.$COUNT_FAST"
+		fi
+	fi
+
+	# If TURNUS_FAST is given but the backup is not present,
+	# copy the last TURNUS backup to TURNUS.1.
+	if [ -d "$TURNUS_FAST_SRC" ]; then
 		local SRC="$TURNUS_FAST_SRC"
 	else
 		local SRC="$HOST_BACKUP/$TURNUS.2"
 	fi
+
+	# SRC might still not exist, if no folders in this turnus ever existed.
 	if [ -d "$SRC" ]; then
 		$ECHO "Copying $SRC to $DST" &>> $LOG
 		if [ ! $DRY_RUN ]; then

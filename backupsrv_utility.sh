@@ -83,6 +83,11 @@ function prepareBackup {
 		exit 1
 	fi
 
+	if [ -z "$GLOBAL_LOG" ]; then
+		$ECHO "GLOBAL_LOG not set. Aborting."
+		exit 1
+	fi
+
 	if [ -z "$SNAPSHOT_RW" ]; then
 		$ECHO "SNAPSHOT_RW not set. Aborting."
 		exit 1
@@ -100,11 +105,6 @@ function prepareBackup {
 
 	if [ -z "$BACKUP_LOCK" ]; then
 		$ECHO "BACKUP_LOCK not set. Aborting."
-		exit 1
-	fi
-
-	if [ -z "$GLOBAL_LOCK" ]; then
-		$ECHO "GLOBAL_LOCK not set. Aborting."
 		exit 1
 	fi
 	

@@ -133,48 +133,7 @@ $ECHO "Fast Count  : $COUNT_FAST" >> $LOG ;
 source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup ;
 
-# step 1: delete the oldest snapshot, if it exists:
-SRC="$HOST_BACKUP/$TURNUS.$COUNT"
-$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG
-if [ -d "$SRC" ] ; then
-	if [ ! $DRY_RUN ]; then
-		$RM -rf "$HOST_BACKUP/$TURNUS.$COUNT" &>> $LOG
-	fi
-else
-	$ECHO "Skipping because $SRC was not found." &>> $LOG
-fi
+rotateSnapshots ;
 
-# step 2: shift the middle snapshots(s) back by one, if they exist
-$ECHO "Step 2: Shifting middle snapshots." &>> $LOG
-for ((i = $COUNT - 1; i > 0; i--));
-do
-	SRC="$HOST_BACKUP/$TURNUS.$i"
-	DST="$HOST_BACKUP/$TURNUS.$((i+1))"
-	if [ -d "$SRC" ]; then
-		$ECHO "Move $SRC to $DST" &>> $LOG ;
-		if [ ! $DRY_RUN ]; then
-			$MV "$SRC" "$DST" &>> $LOG ;
-		fi
-	fi
-done
-
-# step 3: make a hard-link-only (except for dirs) copy of
-# either turnus.2 or turnus-fast.count, assuming that exists,
-# into turnus.1
-$ECHO "Step 3: Saving most recent $TURNUS." &>> $LOG
-DST="$HOST_BACKUP/${TURNUS}.1"
-if [ $TURNUS_FAST ]; then
-	SRC="$HOST_BACKUP/$TURNUS_FAST.$COUNT_FAST"
-else
-	SRC="$HOST_BACKUP/$TURNUS.2"
-fi
-if [ -d "$SRC" ]; then
-	$ECHO "Copying $SRC to $DST" &>> $LOG
-	if [ ! $DRY_RUN ]; then
-		$CP -al "$SRC" "$DST" &>> $LOG
-	fi
-else
-	$ECHO "Skipping because $SRC does not exit." &>> $LOG
-fi
-
-backupExit 0
+# Actually nothing can go wrong (I think). We just tried.
+backupExit 0 ;

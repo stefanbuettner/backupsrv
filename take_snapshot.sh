@@ -1,15 +1,12 @@
 #!/bin/bash
 # ----------------------------------------------------------------------
-# mikes handy rotating-filesystem-snapshot utility
-# ----------------------------------------------------------------------
-# this needs to be a lot more general, but the basic idea is it makes
-# rotating backup-snapshots of /home whenever called
-# ----------------------------------------------------------------------
 # This file is based on the following article
 #   http://www.mikerubel.org/computers/rsync_snapshots/#Isolation
 # with adaptions using these:
 #    http://jonmoore.duckdns.org/index.php/linux-articles/39-backup-with-rsync-or-dd
 #    https://wiki.ubuntuusers.de/NFS/
+# ----------------------------------------------------------------------
+# Stefan Büttner, 2017
 # ----------------------------------------------------------------------
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -40,7 +37,9 @@ function printHelp {
 	$ECHO ""
 	$ECHO "    $0 --host <host> --turnus <turnus> [--count <integer>] [--dry-run] [-h | --help]"
 	$ECHO ""
-	$ECHO "    Takes a snapshots of the given host to /snapshots/<hostname>/<turnus>.0"
+	$ECHO "    Takes a snapshots of the given host to /snapshots/<host>/<turnus>.1"
+	$ECHO "    If count is given, rotates all snapshots from 1 to count before taking"
+    $ECHO "    the snapshot."
 	$ECHO ""
 }
 

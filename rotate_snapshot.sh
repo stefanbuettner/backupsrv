@@ -1,9 +1,12 @@
 #!/bin/bash
 # ----------------------------------------------------------------------
-# mikes handy rotating-filesystem-snapshot utility: daily snapshots
+# This file is based on the following article
+#   http://www.mikerubel.org/computers/rsync_snapshots/#Isolation
+# with adaptions using these:
+#    http://jonmoore.duckdns.org/index.php/linux-articles/39-backup-with-rsync-or-dd
+#    https://wiki.ubuntuusers.de/NFS/
 # ----------------------------------------------------------------------
-# intended to be run daily as a cron job when hourly.3 contains the
-# midnight (or whenever you want) snapshot; say, 13:00 for 4-hour snapshots.
+# Stefan Büttner, 2017
 # ----------------------------------------------------------------------
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"

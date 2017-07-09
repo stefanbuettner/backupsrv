@@ -1,3 +1,13 @@
+# ----------------------------------------------------------------------
+# This file is based on the following article
+#   http://www.mikerubel.org/computers/rsync_snapshots/#Isolation
+# with adaptions using these:
+#    http://jonmoore.duckdns.org/index.php/linux-articles/39-backup-with-rsync-or-dd
+#    https://wiki.ubuntuusers.de/NFS/
+# ----------------------------------------------------------------------
+# Stefan Büttner, 2017
+# ----------------------------------------------------------------------
+
 # Removes HOST_BACKUP/TURNUS.COUNT and rotates HOST_BACKUP/TURNUS.(i-1) to HOST_BACKUP/TURNUS.i."
 # If TURNUS_FAST is not set, it copies the new TURNUS.2 to TURNUS.1."
 # Otherwise it copies TURNUS_FAST.COUNT_FAST to TURNUS.1"

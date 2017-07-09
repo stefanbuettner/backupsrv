@@ -117,6 +117,11 @@ function prepareBackup {
 		$ECHO "BACKUP_LOCK not set. Aborting."
 		exit 1
 	fi
+
+	if [ -z "$CAT" ]; then
+		$ECHO "CAT not set. Aborting."
+		exit 1
+	fi
 	
 	# Make sure we're running as root.
 	ensureRoot ;
@@ -148,7 +153,7 @@ function backupExit {
 	# read only
 	local REMOUNT_RO=true
 	if [ -f "$MOUNT_LOCK" ]; then
-		local NUM=$(CAT "$MOUNT_LOCK")
+		local NUM=$($CAT "$MOUNT_LOCK")
 		NUM=$(( NUM - 1 ))
 		if [ $NUM -gt 0 ]; then
 			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> $LOG

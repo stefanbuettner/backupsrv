@@ -1,11 +1,11 @@
 # Installation
 ## On your client
-3. Make the hostname for your raspberry pi available on your client, e.g. by editing `/etc/hosts`:
+1. Make the hostname for your raspberry pi available on your client, e.g. by editing `/etc/hosts`:
    ```
    <ip-address>        raspberrypi
    ```
-4. Enable the rsyncd service and run it on a nice level of 10 or something.
-5. Export the folder you want to backup as `backupsrc` via `rsync`by adding the following to your `/etc/rsyncd.conf`
+2. Enable the rsyncd service and run it on a nice level of 10 or something.
+3. Export the folder you want to backup as `backupsrc` via `rsync`by adding the following to your `/etc/rsyncd.conf`
    ```
    [system]
    path = <backup-path>
@@ -51,6 +51,7 @@ Now your raspberry should be setup make rotating backups if your machine is avai
    TODO: Document
 
 # Reference
-The scripts are based on the following article(s)
+The scripts are based on the following articles:
 
-[1] www.mikerubel.org/computers/rsync_snapshots/
+[1]: www.mikerubel.org/computers/rsync_snapshots/ "Mike Rubel - Rsync Snapshots"
+[2]: http://jonmoore.duckdns.org/index.php/linux-articles/39-backup-with-rsync-or-dd "Jon Moore - Backup with rsync or dd"

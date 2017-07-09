@@ -108,6 +108,9 @@ EXCLUDES="${SCRIPT_DIR}/backupexcludes.txt"
 # The backup lock file
 BACKUP_LOCK=$HOST_BACKUP/.backup.lock
 
+# The rw mount lock
+MOUNT_LOCK=$SNAPSHOT_RW/.backup.lock
+
 # Logfile
 GLOBAL_LOG=/var/log/backupsrv.log
 LOG=/tmp/backupsrv-$HOST.log

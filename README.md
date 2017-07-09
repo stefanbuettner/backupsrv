@@ -25,7 +25,7 @@
    ```
 3. Export the folder you want to backup as `backupsrc` via `rsync`by adding the following to your `/etc/rsyncd.conf`
    ```
-   [system]
+   [backupsrc]
    path = <backup-path>
    comment = <some comment>
    max connections = 1

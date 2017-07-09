@@ -107,33 +107,6 @@ BACKUP_LOCK=$HOST_BACKUP/.backup.lock
 GLOBAL_LOG=/var/log/backupsrv.log
 LOG=/tmp/backupsrv-$HOST.log
 
-# ------------- a custom exit function ---------------------------------
-
-function backupExit {
-	FAIL=$1
-
-	# now remount the RW snapshot mountpoint as readonly
-	$MOUNT -o remount,ro $SNAPSHOT_RW &>> $LOG ;
-	if (( $? )); then
-	{
-		$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> $LOG ;
-		FAIL=1
-	} fi;
-
-	STATUS="done"
-	if (( $FAIL )); then
-		STATUS="FAILED"
-	fi
-	$ECHO "$($DATE) Backup $STATUS for $HOST." >> $LOG
-	# If an error occurred, print the log to stderr so that the cron job sends an email.
-	if (( $FAIL )); then
-		$CAT $LOG 1>&2 ;
-	fi
-	$CAT $LOG >> $GLOBAL_LOG
-	$RM $LOG
-	exit $FAIL
-}
-
 # ------------- the script itself --------------------------------------
 $ECHO "===============================================================================" >> $LOG ;
 $ECHO "$($DATE): Beginning backup for $HOST" >> $LOG ;
@@ -141,43 +114,8 @@ $ECHO "$($DATE): Beginning backup for $HOST" >> $LOG ;
 $ECHO "Turnus : $TURNUS" >> $LOG ;
 $ECHO "Count  : $COUNT" >> $LOG ;
 
-# make sure we're running as root
-#if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> $LOG; backupExit 1; } fi
-
-# Ensure that the snapshots device is mounted
-$FINDMNT $SNAPSHOT_RW &> /dev/null ;
-if [ "$?" -ne 0 ]; then
-	# If not, try to mount it.
-	# If this doesn't succeed, exit.
-	$MOUNT --target $SNAPSHOT_RW
-	if (( $? )); then
-		$ECHO "Could not mount $SNAPSHOT_RW" >> $LOG
-		backupExit 1;
-	fi
-else
-	$ECHO "$SNAPSHOT_RW is mounted" >> $LOG;
-fi
-
-# Check if another backup process is still active
-if [ -f $BACKUP_LOCK ]; then
-	$ECHO "Another backup process still seems to be active." >> $LOG;
-	backupExit 1;
-fi
-
-# Attempt to remount the RW mount point as RW; else abort
-$MOUNT -o remount,rw --target $SNAPSHOT_RW ;
-if (( $? )); then
-{
-	$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> $LOG;
-	backupExit 1;
-}
-fi;
-
-# Ensure that the host's folder exists
-$MKDIR -p $HOST_BACKUP &>> $LOG
-
-# Just hope, that in the meantime no other process locked.
-$TOUCH $BACKUP_LOCK &>> $LOG
+source "$SCRIPT_DIR/backupsrv_utility.sh"
+prepareBackup ;
 
 # rotating snapshots of / (fixme: this should be more general)
 
@@ -225,8 +163,6 @@ fi
 
 # step 5: update the mtime of hourly.0 to reflect the snapshot time
 $TOUCH $HOST_BACKUP/$TURNUS.0 &>> $LOG ;
-
-$RM $BACKUP_LOCK &>> $LOG ;
 
 # and thats it.
 

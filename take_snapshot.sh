@@ -148,6 +148,7 @@ $ECHO "Syncing to $DST" >> $LOG ;
 $RSYNC								\
 	-va --delete --delete-excluded				\
 	--exclude-from="$EXCLUDES"				\
+	--compress						\
 	$RSYNC_DRYRUN_ARG					\
 	$HOST::backupsrc/ "$DST" > /dev/null 2>> $LOG ;
 

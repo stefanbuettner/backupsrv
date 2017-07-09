@@ -128,7 +128,7 @@ rotateSnapshots ;
 
 # Ensure that the destination dir really exists.
 # It may not in the first run.
-DST="$HOST_BACKUP/$TURNUS.1"
+local DST="$HOST_BACKUP/$TURNUS.1"
 $ECHO "Ensuring that $DST exists." &>> $LOG
 if [ ! $DRY_RUN ]; then
 	$MKDIR -p "$DST" &>> $LOG ;
@@ -139,7 +139,7 @@ fi
 # is unlinked first.  If it were not so, this would copy over the other
 # snapshot(s) too!
 if [ $DRY_RUN == true ]; then
-	RSYNC_DRYRUN_ARG="--dry-run"
+	local RSYNC_DRYRUN_ARG="--dry-run"
 fi
 $ECHO "Syncing to $DST" >> $LOG ;
 $RSYNC								\
@@ -150,7 +150,7 @@ $RSYNC								\
 
 if (( $? )); then
 	$ECHO "rsync exited with: $?" >> $LOG ;
-	FAIL=1
+	local FAIL=1
 fi
 
 # step 5: update the mtime of hourly.0 to reflect the snapshot time

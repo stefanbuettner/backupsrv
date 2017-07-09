@@ -40,7 +40,7 @@ function backupExit {
 		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> $LOG
 	fi
 
-	STATUS="done"
+	STATUS="SUCCEEDED"
 	if (( $FAIL )); then
 		STATUS="FAILED"
 	fi

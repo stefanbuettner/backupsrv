@@ -5,6 +5,24 @@
    <ip-address>        raspberrypi
    ```
 2. Enable the rsyncd service and run it on a nice level of 10 or something.
+   On my machine it worked by installing a systemd service by creating `/lib/systemd/system/rsync.service`:
+   ```
+   [Unit]
+   Description=fast remote file copy program daemon
+   ConditionPathExists=/etc/rsyncd.conf
+
+   [Service]
+   ExecStart=/usr/bin/nice /usr/bin/rsync --daemon --no-detach
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Enabling and starting it via
+   ```
+   sudo systemctl daemon-reload
+   sudo systemctl enable rsync
+   sudo service rsync start
+   ```
 3. Export the folder you want to backup as `backupsrc` via `rsync`by adding the following to your `/etc/rsyncd.conf`
    ```
    [system]
@@ -48,7 +66,10 @@
 Now your raspberry should be setup make rotating backups if your machine is available when the cronjobs execute.
 
 ## Providing snapshots to client
-   TODO: Document
+Export `/root/snapshots` as read only NFS mount to your backup client and configure your backup client
+to mount it someplace, e.g. `/snapshots`.
+
+TODO: Specify
 
 # Reference
 The scripts are based on the following articles:

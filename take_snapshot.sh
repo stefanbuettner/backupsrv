@@ -141,7 +141,7 @@ fi
 # rsync behaves like cp --remove-destination by default, so the destination
 # is unlinked first.  If it were not so, this would copy over the other
 # snapshot(s) too!
-if [ $DRY_RUN == true ]; then
+if [ "$DRY_RUN" == true ]; then
 	RSYNC_DRYRUN_ARG="--dry-run"
 fi
 $ECHO "Syncing to $DST" >> $LOG ;

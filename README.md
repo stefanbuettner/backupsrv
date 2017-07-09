@@ -25,6 +25,10 @@
    ```
 3. Export the folder you want to backup as `backupsrc` via `rsync`by adding the following to your `/etc/rsyncd.conf`
    ```
+   #global (globale einstellung)
+   log file = /var/log/rsync.log
+   timeout = 300
+
    [backupsrc]
    path = <backup-path>
    comment = <some comment>

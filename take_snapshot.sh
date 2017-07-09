@@ -123,37 +123,8 @@ source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup ;
 
 # rotating snapshots of / (fixme: this should be more general)
-
-# step 1: delete the oldest snapshot, if it exists:
-if [ -d $HOST_BACKUP/$TURNUS.3 ] ; then
-	$ECHO "Removing $TURNUS.3" >> $LOG
-	if [ ! $DRY_RUN ]; then
-		$RM -rf $HOST_BACKUP/$TURNUS.3 &>> $LOG
-	fi
-fi
-
-# step 2: shift the middle snapshots(s) back by one, if they exist
-if [ -d $HOST_BACKUP/$TURNUS.2 ] ; then
-	$ECHO "Shifting $TURNUS.2 → $TURNUS.3" >> $LOG
-	if [ ! $DRY_RUN ]; then
-		$MV $HOST_BACKUP/$TURNUS.2 $HOST_BACKUP/$TURNUS.3 &>> $LOG
-	fi
-fi
-if [ -d $HOST_BACKUP/$TURNUS.1 ] ; then
-	$ECHO "Shifting $TURNUS.1 → $TURNUS.2" >> $LOG
-	if [ ! $DRY_RUN ]; then
-		$MV $HOST_BACKUP/$TURNUS.1 $HOST_BACKUP/$TURNUS.2 &>> $LOG
-	fi
-fi
-
-# step 3: make a hard-link-only (except for dirs) copy of the latest snapshot,
-# if that exists
-if [ -d $HOST_BACKUP/$TURNUS.0 ] ; then
-	$ECHO "Copy (hard linked) $TURNUS.0 → $TURNUS.1" >> $LOG
-	if [ ! $DRY_RUN ]; then
-		$CP -al $HOST_BACKUP/$TURNUS.0 $HOST_BACKUP/$TURNUS.1 &>> $LOG
-	fi
-fi
+unset TURNUS_FAST # Just to be save.
+rotateSnapshots ;
 
 # Ensure that the destination dir really exists.
 # It may not in the first run.

@@ -36,7 +36,7 @@ function rotateSnapshots {
 	fi
 
 	# step 1: delete the oldest snapshot, if it exists:
-	SRC="$HOST_BACKUP/$TURNUS.$COUNT"
+	local SRC="$HOST_BACKUP/$TURNUS.$COUNT"
 	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG
 	if [ -d "$SRC" ] ; then
 		if [ ! $DRY_RUN ]; then
@@ -50,8 +50,8 @@ function rotateSnapshots {
 	$ECHO "Step 2: Shifting middle snapshots." &>> $LOG
 	for ((i = $COUNT - 1; i > 0; i--));
 	do
-		SRC="$HOST_BACKUP/$TURNUS.$i"
-		DST="$HOST_BACKUP/$TURNUS.$((i+1))"
+		local SRC="$HOST_BACKUP/$TURNUS.$i"
+		local DST="$HOST_BACKUP/$TURNUS.$((i+1))"
 		if [ -d "$SRC" ]; then
 			$ECHO "Move $SRC to $DST" &>> $LOG ;
 			if [ ! $DRY_RUN ]; then
@@ -64,15 +64,11 @@ function rotateSnapshots {
 	# either turnus.2 or turnus-fast.count, assuming that exists,
 	# into turnus.1
 	$ECHO "Step 3: Saving most recent $TURNUS." &>> $LOG
-	DST="$HOST_BACKUP/$TURNUS.1"
-	if [ -n "$TURNUS_FAST" ]; then
-		if [ -z "$COUNT_FAST" ]; then
-			SRC="$HOST_BACKUP/$TURNUS_FAST.1"
-		else
-			SRC="$HOST_BACKUP/$TURNUS_FAST.$COUNT_FAST"
-		fi
+	local DST="$HOST_BACKUP/$TURNUS.1"
+	if [ -n "$TURNUS_FAST_SRC" ]; then
+		local SRC="$TURNUS_FAST_SRC"
 	else
-		SRC="$HOST_BACKUP/$TURNUS.2"
+		local SRC="$HOST_BACKUP/$TURNUS.2"
 	fi
 	if [ -d "$SRC" ]; then
 		$ECHO "Copying $SRC to $DST" &>> $LOG
@@ -144,15 +140,15 @@ function backupExit {
 
 	unlockBackupFolder ;
 
-	FAIL=$1
+	local FAIL=$1
 
 	# Now remount the RW snapshot mountpoint as readonly
 	# if we are the last to access it.
 	# Also if there is no mount lock file anymore, remount as
 	# read only
-	REMOUNT_RO=true
+	local REMOUNT_RO=true
 	if [ -f "$MOUNT_LOCK" ]; then
-		NUM=$(CAT "$MOUNT_LOCK")
+		local NUM=$(CAT "$MOUNT_LOCK")
 		NUM=$(( NUM - 1 ))
 		if [ $NUM -gt 0 ]; then
 			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> $LOG
@@ -181,7 +177,7 @@ function backupExit {
 		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> $LOG
 	fi
 
-	STATUS="SUCCEEDED"
+	local STATUS="SUCCEEDED"
 	if (( $FAIL )); then
 		STATUS="FAILED"
 	fi
@@ -203,7 +199,7 @@ function backupExit {
 
 # Ensure that the snapshots device is mounted
 function ensureMounted {
-	MOUNT_POINT="$1"
+	local MOUNT_POINT="$1"
 	$FINDMNT "$MOUNT_POINT" &> /dev/null ;
 	if [ "$?" -ne 0 ]; then
 		# If not, try to mount it.
@@ -224,7 +220,7 @@ function ensureMounted {
 # If so, increase the usage counter, otherwise create one.
 function ensureWritable {
 	if [ -f "$MOUNT_LOCK" ]; then
-		NUM=$($CAT "$MOUNT_LOCK")
+		local NUM=$($CAT "$MOUNT_LOCK")
 		$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> $LOG
 		if [ ! $DRY_RUN ]; then
 			$ECHO "Increasing by 1" &>> $LOG

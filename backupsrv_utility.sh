@@ -1,4 +1,39 @@
 function prepareBackup {
+
+	# Ensure that the required variables are set
+	if [ -z "$ECHO" ]; then
+		exit 1
+	fi
+
+	if [ -z "$LOG" ]; then
+		$ECHO "LOG not set. Aborting."
+		exit 1
+	fi
+
+	if [ -z "$SNAPSHOT_RW" ]; then
+		$ECHO "SNAPSHOT_RW not set. Aborting."
+		exit 1
+	fi
+
+	if [ -z "$HOST_BACKUP" ]; then
+		$ECHO "HOST_BACKUP not set. Aborting."
+		exit 1
+	fi
+
+	if [ -z "$MOUNT_LOCK" ]; then
+		$ECHO "MOUNT_LOCK not set. Aborting."
+		exit 1
+	fi
+
+	if [ -z "$BACKUP_LOCK" ]; then
+		$ECHO "BACKUP_LOCK not set. Aborting."
+		exit 1
+	fi
+
+	if [ -z "$GLOBAL_LOCK" ]; then
+		$ECHO "GLOBAL_LOCK not set. Aborting."
+		exit 1
+	fi
 	
 	# Make sure we're running as root.
 	ensureRoot ;

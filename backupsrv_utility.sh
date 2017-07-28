@@ -227,8 +227,8 @@ function ensureMounted {
 		# If this doesn't succeed, exit.
 		$ECHO "Mounting $MOUNT_POINT" &>> $LOG ;
 		if [ ! $DRY_RUN ]; then
-			$MOUNT --target "$MOUNT_POUNT" &>> $LOG ;
-			if (( $? )); then
+			$MOUNT --target "$MOUNT_POINT" &>> $LOG ;
+			if [ "$?" -ne 0 ]; then
 				backupExit 1;
 			fi
 		fi

@@ -176,11 +176,13 @@ function prepareBackup {
 	fi
 
 	# Ensure that the HOST_BACKUP folder exists
-	$ECHO "Ensuring that $HOST_BACKUP exists." &>> $LOG
-	if [ ! $DRY_RUN ]; then
-		$MKDIR -p "$HOST_BACKUP" &>> $LOG
-		if [ "$?" -ne 0 ]; then
-			return $ERR_GENERAL
+	if [ ! -d "$HOST_BACKUP" ]; then
+		$ECHO "Creating $HOST_BACKUP." &>> $LOG
+		if [ ! $DRY_RUN ]; then
+			$MKDIR -p "$HOST_BACKUP" &>> $LOG
+			if [ "$?" -ne 0 ]; then
+				return $ERR_GENERAL
+			fi
 		fi
 	fi
 

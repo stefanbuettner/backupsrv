@@ -139,11 +139,13 @@ fi
 # Ensure that the destination dir really exists.
 # It may not in the first run.
 DST="$HOST_BACKUP/$TURNUS.1"
-$ECHO "Ensuring that $DST exists." &>> "$LOG"
-if [ ! $DRY_RUN ]; then
-	$MKDIR -p "$DST" &>> "$LOG"
-	if [ "$?" -ne 0 ]; then
-		backupExit $ERR_GENERAL
+if [ ! -d $DST ]; then
+	$ECHO "Creating $DST." &>> "$LOG"
+	if [ ! $DRY_RUN ]; then
+		$MKDIR -p "$DST" &>> "$LOG"
+		if [ "$?" -ne 0 ]; then
+			backupExit $ERR_GENERAL
+		fi
 	fi
 fi
 

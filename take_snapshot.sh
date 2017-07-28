@@ -160,7 +160,7 @@ $RSYNC								\
 	$RSYNC_DRYRUN_ARG					\
 	$HOST::backupsrc/ "$DST" > /dev/null 2>> "$LOG"
 
-local RSYNC_RESULT=$?
+RSYNC_RESULT=$?
 if (( $RSYNC_RESULT )); then
 	$ECHO "rsync exited with: $RSYNC_RESULT" >> "$LOG"
 	FAIL=1

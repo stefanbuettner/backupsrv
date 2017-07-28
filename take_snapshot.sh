@@ -122,18 +122,27 @@ $ECHO "Turnus : $TURNUS" >> "$LOG"
 $ECHO "Count  : $COUNT" >> "$LOG"
 
 source "$SCRIPT_DIR/backupsrv_utility.sh"
-prepareBackup ;
+prepareBackup
+if [ "$?" -ne 0 ]; then
+	exitBackup "$?"
+fi
 
 # rotating snapshots of / (fixme: this should be more general)
 unset TURNUS_FAST # Just to be save.
-rotateSnapshots ;
+rotateSnapshots
+if [ "$?" -ne 0 ]; then
+	exitBackup "$?"
+fi
 
 # Ensure that the destination dir really exists.
 # It may not in the first run.
 DST="$HOST_BACKUP/$TURNUS.1"
 $ECHO "Ensuring that $DST exists." &>> "$LOG"
 if [ ! $DRY_RUN ]; then
-	$MKDIR -p "$DST" &>> $LOG ;
+	$MKDIR -p "$DST" &>> "$LOG"
+	if [ "$?" -ne 0 ]; then
+		exitBackup "$?"
+	fi
 fi
 
 # step 4: rsync from the system into the latest snapshot (notice that
@@ -151,8 +160,9 @@ $RSYNC								\
 	$RSYNC_DRYRUN_ARG					\
 	$HOST::backupsrc/ "$DST" > /dev/null 2>> "$LOG"
 
-if (( $? )); then
-	$ECHO "rsync exited with: $?" >> $LOG ;
+local RSYNC_RESULT=$?
+if (( $RSYNC_RESULT )); then
+	$ECHO "rsync exited with: $RSYNC_RESULT" >> "$LOG"
 	FAIL=1
 fi
 
@@ -163,6 +173,5 @@ if [ ! $DRY_RUN ]; then
 fi
 
 # and thats it.
-
 backupExit $FAIL;
 

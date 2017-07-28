@@ -134,9 +134,11 @@ $ECHO "Fast Turnus : $TURNUS_FAST" >> "$LOG"
 $ECHO "Fast Count  : $COUNT_FAST" >> "$LOG"
 
 source "$SCRIPT_DIR/backupsrv_utility.sh"
-prepareBackup ;
+prepareBackup
+if [ "$?" -ne 0 ]; then
+	exitBackup "$?"
+fi
 
-rotateSnapshots ;
+rotateSnapshots
+exitBackup "$S"
 
-# Actually nothing can go wrong (I think). We just tried.
-backupExit 0 ;

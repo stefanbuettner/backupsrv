@@ -36,7 +36,10 @@ function rotateSnapshots {
 	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> "$LOG"
 	if [ -d "$SRC" ] ; then
 		if [ ! $DRY_RUN ]; then
-			$RM -rf "$SRC" &>> $LOG
+			$RM -rf "$SRC" &>> "$LOG"
+			if [ "$?" -ne 0 ]; then
+				return 1
+			fi
 		fi
 	else
 		$ECHO "Skipping because $SRC was not found." &>> $LOG
@@ -52,6 +55,9 @@ function rotateSnapshots {
 			$ECHO "Move $SRC to $DST" &>> $LOG ;
 			if [ ! $DRY_RUN ]; then
 				$MV "$SRC" "$DST" &>> $LOG ;
+				if [ "$?" -ne 0 ]; then
+					return 1
+				fi
 			fi
 		fi
 	done
@@ -84,10 +90,15 @@ function rotateSnapshots {
 		$ECHO "Copying $SRC to $DST" &>> $LOG
 		if [ ! $DRY_RUN ]; then
 			$CP -al "$SRC" "$DST" &>> $LOG
+			if [ "$?" -ne 0 ]; then
+				return 1
+			fi
 		fi
 	else
 		$ECHO "Skipping because $SRC does not exit." &>> $LOG
 	fi
+
+	return 0
 }
 
 
@@ -134,33 +145,51 @@ function prepareBackup {
 	fi
 	
 	# Make sure we're running as root.
-	ensureRoot ;
+	ensureRoot
+	if [ "$?" -ne 0 ]; then
+		return "$?"
+	fi
 	
 	# Ensure that the snapshots device is mounted.
-	ensureMounted $SNAPSHOT_RW ;
+	ensureMounted $SNAPSHOT_RW
+	if [ "$?" -ne 0 ]; then
+		return "$?"
+	fi
 
 	# Check if another backup process is still active.
-	ensureExclusivity ;
+	ensureExclusivity
+	if [ "$?" -ne 0 ]; then
+		return "$?"
+	fi
 
 	# Make sure the backup device is writable.
-	ensureWritable ;
+	ensureWritable
+	if [ "$?" -ne 0 ]; then
+		return "$?"
+	fi
 
 	# Ensure that the HOST_BACKUP folder exists
 	$ECHO "Ensuring that $HOST_BACKUP exists." &>> $LOG
 	if [ ! $DRY_RUN ]; then
 		$MKDIR -p "$HOST_BACKUP" &>> $LOG
+		if [ "$?" -ne 0 ]; then
+			return "$?"
+		fi
 	fi
 
 	# Just hope that in the meantime no other process locked it.
-	lockBackupFolder ;
+	lockBackupFolder
+	if [ "$?" -ne 0 ]; then
+		return "$?"
+	fi
 
+	return 0
 }
 
 # Cleanup everything which was done by prepareBackup.
 function backupExit {
 
-	unlockBackupFolder ;
-
+	unlockBackupFolder
 	local FAIL=$1
 
 	# Now remount the RW snapshot mountpoint as readonly
@@ -229,10 +258,14 @@ function ensureMounted {
 		if [ ! $DRY_RUN ]; then
 			$MOUNT --target "$MOUNT_POINT" &>> "$LOG"
 			if [ "$?" -ne 0 ]; then
-				backupExit 1;
+				return 1
 			fi
 		fi
+
+:		# FIXME: Remove all locks which might still be there because the harddrive was plugged out/unmounted/whatever when a backup process was still working.
 	fi
+
+	return 0
 }
 
 
@@ -250,12 +283,10 @@ function ensureWritable {
 	else
 		$ECHO "Remounting $SNAPSHOT_RW writable." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
-			$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> $LOG ;
-			if (( $? )); then
-			{
-				$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> $LOG ;
-				backupExit 1;
-			}
+			$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> "$LOG"
+			if [ "$?" -ne 0 ]; then
+				$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> "$LOG"
+				return "$?"
 			fi
 		fi
 		$ECHO "Locking $SNAPSHOT_RW as writable." &>> "$LOG"
@@ -283,6 +314,8 @@ function lockBackupFolder {
 	if [ ! $DRY_RUN ]; then
 		$TOUCH $BACKUP_LOCK &>> "$LOG"
 	fi
+
+	return 0
 }
 
 
@@ -295,11 +328,13 @@ function unlockBackupFolder {
 			$RM "$BACKUP_LOCK" &>> "$LOG"
 		fi
 	fi
+
+	return 0
 }
 
 
 # make sure we're running as root
 function ensureRoot {
-	if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> $LOG; backupExit 1; } fi
+	if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> "$LOG"; return 1; } fi
 }
 

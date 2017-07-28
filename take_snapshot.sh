@@ -123,15 +123,17 @@ $ECHO "Count  : $COUNT" >> "$LOG"
 
 source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup
-if [ "$?" -ne 0 ]; then
-	exitBackup "$?"
+FAIL=$?
+if [ "$FAIL" -ne 0 ]; then
+	backupExit $FAIL
 fi
 
 # rotating snapshots of / (fixme: this should be more general)
 unset TURNUS_FAST # Just to be save.
 rotateSnapshots
-if [ "$?" -ne 0 ]; then
-	exitBackup "$?"
+FAIL=$?
+if [ "$FAIL" -ne 0 ]; then
+	backupExit $FAIL
 fi
 
 # Ensure that the destination dir really exists.
@@ -141,7 +143,7 @@ $ECHO "Ensuring that $DST exists." &>> "$LOG"
 if [ ! $DRY_RUN ]; then
 	$MKDIR -p "$DST" &>> "$LOG"
 	if [ "$?" -ne 0 ]; then
-		exitBackup "$?"
+		backupExit $ERR_GENERAL
 	fi
 fi
 
@@ -163,7 +165,7 @@ $RSYNC								\
 RSYNC_RESULT=$?
 if (( $RSYNC_RESULT )); then
 	$ECHO "rsync exited with: $RSYNC_RESULT" >> "$LOG"
-	FAIL=1
+	FAIL=$ERR_GENERAL
 fi
 
 # step 5: update the mtime of hourly.0 to reflect the snapshot time

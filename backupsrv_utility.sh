@@ -8,6 +8,10 @@
 # Stefan Büttner, 2017
 # ----------------------------------------------------------------------
 
+# Error codes
+ERR_GENERAL=1
+ERR_LOCKED=2
+
 # Removes HOST_BACKUP/TURNUS.COUNT and rotates HOST_BACKUP/TURNUS.(i-1) to HOST_BACKUP/TURNUS.i."
 # If TURNUS_FAST is not set, it copies the new TURNUS.2 to TURNUS.1."
 # Otherwise it copies TURNUS_FAST.COUNT_FAST to TURNUS.1"
@@ -18,17 +22,17 @@ function rotateSnapshots {
 	# TODO: perhaps let prepareBackup set a variable that it was executed which we can check here.
 	if [ -z "$TURNUS" ]; then
 		$ECHO "rotateSnapshots: TURNUS not set. Returning." &>> "$LOG"
-		return 1
+		return $ERR_GENERAL
 	fi
 
 	if [ -z "$COUNT" ]; then
 		$ECHO "rotateSnapshots: COUNT not set. Returning." &>> "$LOG"
-		return 1
+		return $ERR_GENERAL
 	fi
 
 	if [ -z "$HOST_BACKUP" ]; then
 		$ECHO "rotateSnapshots: HOST_BACKUP not set. Returning." &>> "$LOG"
-		return 1
+		return $ERR_GENERAL
 	fi
 
 	# step 1: delete the oldest snapshot, if it exists:
@@ -38,7 +42,7 @@ function rotateSnapshots {
 		if [ ! $DRY_RUN ]; then
 			$RM -rf "$SRC" &>> "$LOG"
 			if [ "$?" -ne 0 ]; then
-				return 1
+				return $ERR_GENERAL
 			fi
 		fi
 	else
@@ -56,7 +60,7 @@ function rotateSnapshots {
 			if [ ! $DRY_RUN ]; then
 				$MV "$SRC" "$DST" &>> $LOG ;
 				if [ "$?" -ne 0 ]; then
-					return 1
+					return $ERR_GENERAL
 				fi
 			fi
 		fi
@@ -91,7 +95,7 @@ function rotateSnapshots {
 		if [ ! $DRY_RUN ]; then
 			$CP -al "$SRC" "$DST" &>> $LOG
 			if [ "$?" -ne 0 ]; then
-				return 1
+				return $ERR_GENERAL
 			fi
 		fi
 	else
@@ -106,66 +110,69 @@ function prepareBackup {
 
 	# Ensure that the required variables are set
 	if [ -z "$ECHO" ]; then
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$LOG" ]; then
 		$ECHO "LOG not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$GLOBAL_LOG" ]; then
 		$ECHO "GLOBAL_LOG not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$SNAPSHOT_RW" ]; then
 		$ECHO "SNAPSHOT_RW not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$HOST_BACKUP" ]; then
 		$ECHO "HOST_BACKUP not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$MOUNT_LOCK" ]; then
 		$ECHO "MOUNT_LOCK not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$BACKUP_LOCK" ]; then
 		$ECHO "BACKUP_LOCK not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 
 	if [ -z "$CAT" ]; then
 		$ECHO "CAT not set. Aborting."
-		exit 1
+		exit $ERR_GENERAL
 	fi
 	
 	# Make sure we're running as root.
 	ensureRoot
-	if [ "$?" -ne 0 ]; then
-		return "$?"
+	local FAIL=$?
+	if [ "$FAIL" -ne 0 ]; then
+		return $FAIL
 	fi
 	
 	# Ensure that the snapshots device is mounted.
 	ensureMounted $SNAPSHOT_RW
-	if [ "$?" -ne 0 ]; then
-		return "$?"
+	local FAIL=$?
+	if [ "$FAIL" -ne 0 ]; then
+		return $FAIL
 	fi
 
 	# Check if another backup process is still active.
 	ensureExclusivity
-	if [ "$?" -ne 0 ]; then
-		return "$?"
+	local FAIL=$?
+	if [ "$FAIL" -ne 0 ]; then
+		return $FAIL
 	fi
 
 	# Make sure the backup device is writable.
 	ensureWritable
 	if [ "$?" -ne 0 ]; then
-		return "$?"
+		return $ERR_GENERAL
 	fi
 
 	# Ensure that the HOST_BACKUP folder exists
@@ -173,14 +180,15 @@ function prepareBackup {
 	if [ ! $DRY_RUN ]; then
 		$MKDIR -p "$HOST_BACKUP" &>> $LOG
 		if [ "$?" -ne 0 ]; then
-			return "$?"
+			return $ERR_GENERAL
 		fi
 	fi
 
 	# Just hope that in the meantime no other process locked it.
 	lockBackupFolder
-	if [ "$?" -ne 0 ]; then
-		return "$?"
+	local FAIL=$?
+	if [ "$FAIL" -ne 0 ]; then
+		return $FAIL
 	fi
 
 	return 0
@@ -189,42 +197,47 @@ function prepareBackup {
 # Cleanup everything which was done by prepareBackup.
 function backupExit {
 
-	unlockBackupFolder
 	local FAIL=$1
 
-	# Now remount the RW snapshot mountpoint as readonly
-	# if we are the last to access it.
-	# Also if there is no mount lock file anymore, remount as
-	# read only
-	local REMOUNT_RO=true
-	if [ -f "$MOUNT_LOCK" ]; then
-		local NUM=$($CAT "$MOUNT_LOCK")
-		NUM=$(( NUM - 1 ))
-		if [ $NUM -gt 0 ]; then
-			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> "$LOG"
-			REMOUNT_RO=false
+	# If the abort is not due to another process is still working
+	# unlock the folders
+	if [ "$FAIL" -ne "$ERR_LOCKED" ]; then
+		unlockBackupFolder
+
+		# Now remount the RW snapshot mountpoint as readonly
+		# if we are the last to access it.
+		# Also if there is no mount lock file anymore, remount as
+		# read only
+		local REMOUNT_RO=true
+		if [ -f "$MOUNT_LOCK" ]; then
+			local NUM=$($CAT "$MOUNT_LOCK")
+			NUM=$(( NUM - 1 ))
+			if [ $NUM -gt 0 ]; then
+				$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> "$LOG"
+				REMOUNT_RO=false
+				if [ ! $DRY_RUN ]; then
+					$ECHO $NUM > "$MOUNT_LOCK"
+				fi
+			else
+				$ECHO "Unlocking $SNAPSHOT_RW." &>> "$LOG"
+				if [ ! $DRY_RUN ]; then
+					$RM "$MOUNT_LOCK" &>> "$LOG"
+				fi
+			fi
+		fi
+
+		if [ $REMOUNT_RO == true ]; then
+			$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> "$LOG"
 			if [ ! $DRY_RUN ]; then
-				$ECHO $NUM > "$MOUNT_LOCK"
+				$MOUNT -o remount,ro $SNAPSHOT_RW &>> "$LOG"
+				if [ "$?" -ne 0 ]; then
+					$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> "$LOG"
+					FAIL=$ERR_GENERAL
+				fi
 			fi
 		else
-			$ECHO "Unlocking $SNAPSHOT_RW." &>> "$LOG"
-			if [ ! $DRY_RUN ]; then
-				$RM "$MOUNT_LOCK" &>> "$LOG"
-			fi
+			$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> "$LOG"
 		fi
-	fi
-
-	if [ $REMOUNT_RO == true ]; then
-		$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> "$LOG"
-		if [ ! $DRY_RUN ]; then
-			$MOUNT -o remount,ro $SNAPSHOT_RW &>> "$LOG"
-			if [ "$?" -ne 0 ]; then
-				$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> "$LOG"
-				FAIL=1
-			fi
-		fi
-	else
-		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> "$LOG"
 	fi
 
 	local STATUS="SUCCEEDED"
@@ -233,12 +246,15 @@ function backupExit {
 	fi
 
 	$ECHO "$($DATE) Backup $STATUS for $HOST." >> "$LOG"
+
+	# First append the log to the global log
+	$CAT "$LOG" &>> "$GLOBAL_LOG"
+
 	# If an error occurred, print the log to stderr so that the cron job sends an email.
 	if (( $FAIL )); then
 		$CAT "$LOG" 1>&2
 	fi
 
-	$CAT "$LOG" &>> "$GLOBAL_LOG"
 	if [ -f "$LOG" ]; then
 		$RM "$LOG"
 	fi
@@ -258,7 +274,7 @@ function ensureMounted {
 		if [ ! $DRY_RUN ]; then
 			$MOUNT --target "$MOUNT_POINT" &>> "$LOG"
 			if [ "$?" -ne 0 ]; then
-				return 1
+				return $ERR_GENERAL
 			fi
 		fi
 
@@ -286,7 +302,7 @@ function ensureWritable {
 			$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> "$LOG"
 			if [ "$?" -ne 0 ]; then
 				$ECHO "snapshot: could not remount $SNAPSHOT_RW readwrite" >> "$LOG"
-				return "$?"
+				return $ERR_GENERAL
 			fi
 		fi
 		$ECHO "Locking $SNAPSHOT_RW as writable." &>> "$LOG"
@@ -302,7 +318,7 @@ function ensureWritable {
 function ensureExclusivity {
 	if [ -f $BACKUP_LOCK ]; then
 		$ECHO "Another backup process still seems to be active." >> "$LOG"
-		return 1
+		return $ERR_LOCKED
 	fi
 
 	return 0
@@ -326,6 +342,9 @@ function unlockBackupFolder {
 		$ECHO "Unlocking $HOST_BACKUP." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
 			$RM "$BACKUP_LOCK" &>> "$LOG"
+			if [ "$?" -ne 0 ]; then
+				return $ERR_GENERAL
+			fi
 		fi
 	fi
 

@@ -136,9 +136,9 @@ $ECHO "Fast Count  : $COUNT_FAST" >> "$LOG"
 source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup
 if [ "$?" -ne 0 ]; then
-	exitBackup "$?"
+	backupExit $ERR_GENERAL
 fi
 
 rotateSnapshots
-exitBackup "$S"
+backupExit "$?"
 

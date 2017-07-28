@@ -359,3 +359,24 @@ function ensureRoot {
 	if (( `$ID -u` != 0 )); then { $ECHO "Sorry, must be root.  Exiting..." >> "$LOG"; return 1; } fi
 }
 
+# Checks if the global log exceeds some size.
+# If so, it moves the log by appending an increasing number and zips it using gzip.
+function archiveLog {
+	BYTES=$($STAT --printf="%s" "$GLOBAL_LOG")
+
+	# If greater than 250M
+	if [ $BYTES -gt 250000000 ]; then
+		i=1
+		for file in "$GLOBAL_LOG".*.gz ; do
+			k=${file#$GLOBAL_LOG.}
+			k=${k%.gz}
+			if [ "$k" -gt "$i" ]; then
+				i=$k
+			fi
+		done
+		let 'i=i+1'
+		LOG_ARCHIVE="$GLOBAL_LOG.$i"
+		$MV "$GLOBAL_LOG" "$LOG_ARCHIVE"
+		$GZIP "$LOG_ARCHIVE" -9
+	fi
+}

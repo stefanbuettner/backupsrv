@@ -123,15 +123,15 @@ LOG=/tmp/backupsrv-$HOST.log
 
 # ------------- the script itself --------------------------------------
 $ECHO "===============================================================================" >> $LOG ;
-$ECHO "$($DATE): Rotating for $HOST" >> $LOG ;
+$ECHO "$($DATE): Rotating for $HOST" >> "$LOG"
 if [ $DRY_RUN ]; then
-	$ECHO "RUNNING DRY!" >> $LOG ;
+	$ECHO "RUNNING DRY!" >> "$LOG"
 fi
 
-$ECHO "Turnus      : $TURNUS" >> $LOG ;
-$ECHO "Count       : $COUNT" >> $LOG ;
-$ECHO "Fast Turnus : $TURNUS_FAST" >> $LOG ;
-$ECHO "Fast Count  : $COUNT_FAST" >> $LOG ;
+$ECHO "Turnus      : $TURNUS" >> "$LOG"
+$ECHO "Count       : $COUNT" >> "$LOG"
+$ECHO "Fast Turnus : $TURNUS_FAST" >> "$LOG"
+$ECHO "Fast Count  : $COUNT_FAST" >> "$LOG"
 
 source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup ;

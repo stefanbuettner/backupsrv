@@ -115,11 +115,11 @@ GLOBAL_LOG=/var/log/backupsrv.log
 LOG=/tmp/backupsrv-$HOST.log
 
 # ------------- the script itself --------------------------------------
-$ECHO "===============================================================================" >> $LOG ;
-$ECHO "$($DATE): Beginning backup for $HOST" >> $LOG ;
+$ECHO "===============================================================================" >> "$LOG"
+$ECHO "$($DATE): Beginning backup for $HOST" >> "$LOG"
 
-$ECHO "Turnus : $TURNUS" >> $LOG ;
-$ECHO "Count  : $COUNT" >> $LOG ;
+$ECHO "Turnus : $TURNUS" >> "$LOG"
+$ECHO "Count  : $COUNT" >> "$LOG"
 
 source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup ;
@@ -131,7 +131,7 @@ rotateSnapshots ;
 # Ensure that the destination dir really exists.
 # It may not in the first run.
 DST="$HOST_BACKUP/$TURNUS.1"
-$ECHO "Ensuring that $DST exists." &>> $LOG
+$ECHO "Ensuring that $DST exists." &>> "$LOG"
 if [ ! $DRY_RUN ]; then
 	$MKDIR -p "$DST" &>> $LOG ;
 fi
@@ -143,13 +143,13 @@ fi
 if [ "$DRY_RUN" == true ]; then
 	RSYNC_DRYRUN_ARG="--dry-run"
 fi
-$ECHO "Syncing to $DST" >> $LOG ;
+$ECHO "Syncing to $DST" >> "$LOG"
 $RSYNC								\
 	-va --delete --delete-excluded				\
 	--exclude-from="$EXCLUDES"				\
 	--compress						\
 	$RSYNC_DRYRUN_ARG					\
-	$HOST::backupsrc/ "$DST" > /dev/null 2>> $LOG ;
+	$HOST::backupsrc/ "$DST" > /dev/null 2>> "$LOG"
 
 if (( $? )); then
 	$ECHO "rsync exited with: $?" >> $LOG ;
@@ -157,9 +157,9 @@ if (( $? )); then
 fi
 
 # step 5: update the mtime of hourly.0 to reflect the snapshot time
-$ECHO "Updating $DST timestamp." &>> $LOG
+$ECHO "Updating $DST timestamp." &>> "$LOG"
 if [ ! $DRY_RUN ]; then
-	$TOUCH "$DST" &>> $LOG ;
+	$TOUCH "$DST" &>> "$LOG"
 fi
 
 # and thats it.

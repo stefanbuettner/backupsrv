@@ -17,23 +17,23 @@ function rotateSnapshots {
 	# I assume that the other variables have been checked by prepareBackup already.
 	# TODO: perhaps let prepareBackup set a variable that it was executed which we can check here.
 	if [ -z "$TURNUS" ]; then
-		$ECHO "rotateSnapshots: TURNUS not set. Returning." &>> $LOG
+		$ECHO "rotateSnapshots: TURNUS not set. Returning." &>> "$LOG"
 		return 1
 	fi
 
 	if [ -z "$COUNT" ]; then
-		$ECHO "rotateSnapshots: COUNT not set. Returning." &>> $LOG
+		$ECHO "rotateSnapshots: COUNT not set. Returning." &>> "$LOG"
 		return 1
 	fi
 
 	if [ -z "$HOST_BACKUP" ]; then
-		$ECHO "rotateSnapshots: HOST_BACKUP not set. Returning." &>> $LOG
+		$ECHO "rotateSnapshots: HOST_BACKUP not set. Returning." &>> "$LOG"
 		return 1
 	fi
 
 	# step 1: delete the oldest snapshot, if it exists:
 	local SRC="$HOST_BACKUP/$TURNUS.$COUNT"
-	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> $LOG
+	$ECHO "Step 1: Deleting oldest snapshot '$SRC'." &>> "$LOG"
 	if [ -d "$SRC" ] ; then
 		if [ ! $DRY_RUN ]; then
 			$RM -rf "$SRC" &>> $LOG
@@ -172,30 +172,30 @@ function backupExit {
 		local NUM=$($CAT "$MOUNT_LOCK")
 		NUM=$(( NUM - 1 ))
 		if [ $NUM -gt 0 ]; then
-			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> $LOG
+			$ECHO "Still $NUM are accessing $SNAPSHOT_RW." &>> "$LOG"
 			REMOUNT_RO=false
 			if [ ! $DRY_RUN ]; then
 				$ECHO $NUM > "$MOUNT_LOCK"
 			fi
 		else
-			$ECHO "Unlocking $SNAPSHOT_RW." &>> $LOG
+			$ECHO "Unlocking $SNAPSHOT_RW." &>> "$LOG"
 			if [ ! $DRY_RUN ]; then
-				$RM "$MOUNT_LOCK" &>> $LOG
+				$RM "$MOUNT_LOCK" &>> "$LOG"
 			fi
 		fi
 	fi
 
 	if [ $REMOUNT_RO == true ]; then
-		$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> $LOG
+		$ECHO "Remounting $SNAPSHOT_RW as read-only." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
-			$MOUNT -o remount,ro $SNAPSHOT_RW &>> $LOG
-			if (( $? )); then
-				$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> $LOG ;
+			$MOUNT -o remount,ro $SNAPSHOT_RW &>> "$LOG"
+			if [ "$?" -ne 0 ]; then
+				$ECHO "snapshot: could not remount $SNAPSHOT_RW readonly" >> "$LOG"
 				FAIL=1
 			fi
 		fi
 	else
-		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> $LOG
+		$ECHO "Leaving $SNAPSHOT_RW mounted as rw." &>> "$LOG"
 	fi
 
 	local STATUS="SUCCEEDED"
@@ -203,15 +203,15 @@ function backupExit {
 		STATUS="FAILED"
 	fi
 
-	$ECHO "$($DATE) Backup $STATUS for $HOST." >> $LOG ;
+	$ECHO "$($DATE) Backup $STATUS for $HOST." >> "$LOG"
 	# If an error occurred, print the log to stderr so that the cron job sends an email.
 	if (( $FAIL )); then
-		$CAT $LOG 1>&2 ;
+		$CAT "$LOG" 1>&2
 	fi
 
-	$CAT $LOG &>> $GLOBAL_LOG
+	$CAT "$LOG" &>> "$GLOBAL_LOG"
 	if [ -f "$LOG" ]; then
-		$RM "$LOG" ;
+		$RM "$LOG"
 	fi
 
 	exit $FAIL
@@ -221,13 +221,13 @@ function backupExit {
 # Ensure that the snapshots device is mounted
 function ensureMounted {
 	local MOUNT_POINT="$1"
-	$FINDMNT "$MOUNT_POINT" &> /dev/null ;
+	$FINDMNT "$MOUNT_POINT" &> /dev/null
 	if [ "$?" -ne 0 ]; then
 		# If not, try to mount it.
 		# If this doesn't succeed, exit.
-		$ECHO "Mounting $MOUNT_POINT" &>> $LOG ;
+		$ECHO "Mounting $MOUNT_POINT" &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
-			$MOUNT --target "$MOUNT_POINT" &>> $LOG ;
+			$MOUNT --target "$MOUNT_POINT" &>> "$LOG"
 			if [ "$?" -ne 0 ]; then
 				backupExit 1;
 			fi
@@ -242,13 +242,13 @@ function ensureMounted {
 function ensureWritable {
 	if [ -f "$MOUNT_LOCK" ]; then
 		local NUM=$($CAT "$MOUNT_LOCK")
-		$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> $LOG
+		$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
-			$ECHO "Increasing by 1" &>> $LOG
+			$ECHO "Increasing by 1" &>> "$LOG"
 			$ECHO "$(( $NUM + 1 ))" > "$MOUNT_LOCK"
 		fi
 	else
-		$ECHO "Remounting $SNAPSHOT_RW writable." &>> $LOG ;
+		$ECHO "Remounting $SNAPSHOT_RW writable." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
 			$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> $LOG ;
 			if (( $? )); then
@@ -258,26 +258,30 @@ function ensureWritable {
 			}
 			fi
 		fi
-		$ECHO "Locking $SNAPSHOT_RW as writable." &>> $LOG
+		$ECHO "Locking $SNAPSHOT_RW as writable." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
 			$ECHO "1" > "$MOUNT_LOCK"
 		fi
 	fi
+
+	return 0
 }
 
 # Check if another backup process is still active
 function ensureExclusivity {
 	if [ -f $BACKUP_LOCK ]; then
-		$ECHO "Another backup process still seems to be active." >> $LOG ; 
-		backupExit 1;
+		$ECHO "Another backup process still seems to be active." >> "$LOG"
+		return 1
 	fi
+
+	return 0
 }
 
 function lockBackupFolder {
 	# Just hope, that in the meantime no other process locked.
-	$ECHO "Locking $HOST_BACKUP" &>> $LOG ;
+	$ECHO "Locking $HOST_BACKUP." &>> "$LOG"
 	if [ ! $DRY_RUN ]; then
-		$TOUCH $BACKUP_LOCK &>> $LOG ;
+		$TOUCH $BACKUP_LOCK &>> "$LOG"
 	fi
 }
 
@@ -286,9 +290,9 @@ function unlockBackupFolder {
 	# note: do *not* update the mtime of daily.0; it will reflect
 	# when hourly.3 was made, which should be correct.
 	if [ -f "$BACKUP_LOCK" ]; then
-		$ECHO "Unlocking $HOST_BACKUP." &>> $LOG
+		$ECHO "Unlocking $HOST_BACKUP." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
-			$RM "$BACKUP_LOCK" &>> $LOG ;
+			$RM "$BACKUP_LOCK" &>> "$LOG"
 		fi
 	fi
 }

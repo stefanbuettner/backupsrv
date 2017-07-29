@@ -165,7 +165,7 @@ $RSYNC								\
 	$HOST::backupsrc/ "$DST" > /dev/null 2>> "$LOG"
 
 RSYNC_RESULT=$?
-if (( $RSYNC_RESULT )); then
+if  [ "$RSYNC_RESULT" -ne 0 -a "$RSYNC_RESULT" -ne 10 ]; then
 	$ECHO "rsync exited with: $RSYNC_RESULT" >> "$LOG"
 	FAIL=$ERR_GENERAL
 fi

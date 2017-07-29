@@ -101,6 +101,9 @@ source "$SCRIPT_DIR/backupsrv_utility.sh"
 # ------------- the script itself --------------------------------------
 $ECHO "===============================================================================" >> "$LOG"
 $ECHO "$($DATE): Beginning backup for $HOST" >> "$LOG"
+if [ $DRY_RUN ]; then
+	$ECHO "RUNNING DRY!" >> "$LOG"
+fi
 
 $ECHO "Turnus : $TURNUS" >> "$LOG"
 $ECHO "Count  : $COUNT" >> "$LOG"

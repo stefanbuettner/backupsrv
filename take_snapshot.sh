@@ -93,26 +93,10 @@ if [ $COUNT -le 0 ]; then
 	exit 1
 fi
 
-# ------------- file locations -----------------------------------------
+# ------------- global variables -----------------------------------------
 
-# Mount point of the backup destination. Has to be specified in /etc/fstab
-SNAPSHOT_RW=/root/snapshots;
-
-# The actual backup directory
-HOST_BACKUP=$SNAPSHOT_RW/$HOST
-
-# List of patterns which to exclude. See rsync manual.
-EXCLUDES="${SCRIPT_DIR}/backupexcludes.txt"
-
-# The backup lock file
-BACKUP_LOCK=$HOST_BACKUP/.backup.lock
-
-# The rw mount lock
-MOUNT_LOCK=$SNAPSHOT_RW/.backup.lock
-
-# Logfile
-GLOBAL_LOG=/var/log/backupsrv.log
-LOG=/tmp/backupsrv-$HOST.log
+# Sets variables such as LOG and HOST_BACKUP
+source "$SCRIPT_DIR/backupsrv_utility.sh"
 
 # ------------- the script itself --------------------------------------
 $ECHO "===============================================================================" >> "$LOG"
@@ -121,7 +105,6 @@ $ECHO "$($DATE): Beginning backup for $HOST" >> "$LOG"
 $ECHO "Turnus : $TURNUS" >> "$LOG"
 $ECHO "Count  : $COUNT" >> "$LOG"
 
-source "$SCRIPT_DIR/backupsrv_utility.sh"
 prepareBackup
 FAIL=$?
 if [ "$FAIL" -ne 0 ]; then

@@ -8,9 +8,11 @@
 # Stefan Büttner, 2017
 # ----------------------------------------------------------------------
 
-# Error codes
-ERR_GENERAL=1
-ERR_LOCKED=2
+if [ -z "$SCRIPT_DIR" ]; then
+	$ECHO "No script dir set. Exiting..."
+	exit 1
+fi
+source "$SCRIPT_DIR/global_vars.sh"
 
 # Removes HOST_BACKUP/TURNUS.COUNT and rotates HOST_BACKUP/TURNUS.(i-1) to HOST_BACKUP/TURNUS.i."
 # If TURNUS_FAST is not set, it copies the new TURNUS.2 to TURNUS.1."

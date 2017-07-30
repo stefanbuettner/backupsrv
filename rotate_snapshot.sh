@@ -117,10 +117,12 @@ $ECHO "Count       : $COUNT" >> "$LOG"
 $ECHO "Fast Turnus : $TURNUS_FAST" >> "$LOG"
 $ECHO "Fast Count  : $COUNT_FAST" >> "$LOG"
 prepareBackup
-if [ "$?" -ne 0 ]; then
-	backupExit $ERR_GENERAL
+FAIL=$?
+if [ "$FAIL" -ne 0 ]; then
+	backupExit $FAIL
 fi
 
 rotateSnapshots
-backupExit "$?"
+FAIL=$?
+backupExit $FAIL
 

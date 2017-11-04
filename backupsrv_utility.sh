@@ -293,14 +293,10 @@ function ensureMounted {
 # Check if SNAPSHOT_RW is already mounted rw by another backup.
 # If so, increase the usage counter, otherwise create one.
 function ensureWritable {
-	if [ -f "$MOUNT_LOCK" ]; then
-		local NUM=$($CAT "$MOUNT_LOCK")
-		$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> "$LOG"
-		if [ ! $DRY_RUN ]; then
-			$ECHO "Increasing by 1" &>> "$LOG"
-			$ECHO "$(( $NUM + 1 ))" > "$MOUNT_LOCK"
-		fi
-	else
+	# The mount lock should exist if and only if the snapshots folder is mounted writable.
+	# So mount it as writable if it does not exist.
+	# Remounting a writable mount as writable doesn' fail.
+	if [ ![ -f "$MOUNT_LOCK" ] ]; then
 		$ECHO "Remounting $SNAPSHOT_RW writable." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
 			$MOUNT -o remount,rw --target $SNAPSHOT_RW &>> "$LOG"
@@ -309,6 +305,21 @@ function ensureWritable {
 				return $ERR_GENERAL
 			fi
 		fi
+	fi
+
+	# Now check again if the mount lock exists.
+	# Some other process might have created it because they were launched simultaneously.
+	# This hopefully fixes the bug that two simultaneously started rotations tasks
+	# don't work together. Both mounted the partition as writable and the first one, which
+	# finished, remounted the partition as read-only.
+	if [ -f "$MOUNT_LOCK" ]; then
+		local NUM=$($CAT "$MOUNT_LOCK")
+		$ECHO "$NUM backups accessing $SNAPSHOT_RW." &>> "$LOG"
+		if [ ! $DRY_RUN ]; then
+			$ECHO "Increasing by 1" &>> "$LOG"
+			$ECHO "$(( $NUM + 1 ))" > "$MOUNT_LOCK"
+		fi
+	else
 		$ECHO "Locking $SNAPSHOT_RW as writable." &>> "$LOG"
 		if [ ! $DRY_RUN ]; then
 			$ECHO "1" > "$MOUNT_LOCK"
